@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interactive 3D Particle Portfolio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Space+Grotesk:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { touch-action: manipulation; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        body.dark {
+            background-color: #010307;
+            color: #f3f4f6;
+        }
+        body:not(.dark) {
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        h1, h2, h3, .font-heading { font-family: 'Space Grotesk', sans-serif; }
+        
+        #webgl-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            pointer-events: auto;
+        }
+        .glow-text {
+            text-shadow: 0 0 35px rgba(6, 182, 212, 0.8), 0 0 70px rgba(245, 158, 11, 0.4);
+        }
+
+        body.dark .glass-card {
+            background: rgba(4, 9, 20, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        body:not(.dark) .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 10px 35px -10px rgba(6, 182, 212, 0.25);
+        }
+
+        .shape-btn.active {
+            background: rgba(6, 182, 212, 0.25);
+            border-color: #06b6d4;
+            color: #06b6d4;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        body.dark .shape-btn.active { color: #ffffff; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        body.dark ::-webkit-scrollbar-track { background: #010307; }
+        body.dark ::-webkit-scrollbar-thumb { background: #1e293b; }
+    </style>
+</head>
+<body class="dark selection:bg-cyan-500 selection:text-white antialiased">
+
+    <!-- WebGL Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- Header Navigation -->
+    <header class="fixed top-0 left-0 w-full z-50 backdrop-blur-md bg-white/70 dark:bg-black/40 border-b border-black/10 dark:border-white/10 transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+            <a href="#hero" class="flex items-center gap-3 group shrink-0 sfx-hover">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-amber-400 p-[2px] group-hover:rotate-180 transition-transform duration-500">
+                    <div class="w-full h-full bg-white dark:bg-black rounded-full flex items-center justify-center">
+                        <span id="display-avatar-initial" class="text-xs font-bold text-cyan-500 dark:text-cyan-400">A</span>
+                    </div>
+                </div>
+                <span id="display-brand-logo" class="text-base sm:text-lg font-bold font-heading tracking-wider text-slate-900 dark:text-white">PORTFOLIO<span class="text-cyan-500 dark:text-cyan-400">.DEV</span></span>
+            </a>
+
+            <!-- Desktop Nav & Action Buttons -->
+            <div class="flex items-center gap-4 sm:gap-6">
+                <!-- Desktop Menu Links -->
+                <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600 dark:text-gray-300">
+                    <a href="#hero" class="sfx-hover hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">Home</a>
+                    <a href="#agency" class="sfx-hover hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">Agency</a>
+                    <a href="#expertise" class="sfx-hover hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">Expertise</a>
+                    <a href="#projects" class="sfx-hover hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">Projects</a>
+                    <a href="#contact" class="sfx-btn px-4 py-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500 hover:text-white transition-all shadow-md shadow-cyan-500/10">Contact</a>
+                </nav>
+
+                <div class="flex items-center gap-2">
+                    <!-- Theme Toggle Button -->
+                    <button id="theme-toggle-btn" class="sfx-btn glass-card w-9 h-9 rounded-full flex items-center justify-center text-amber-500 dark:text-cyan-400 hover:scale-105 transition-all shadow-sm" title="Switch Light/Dark Mode">
+                        <i id="theme-icon" class="fa-solid fa-sun text-sm"></i>
+                    </button>
+
+                    <!-- Hidden Editor Button -->
+                    <button id="open-editor-btn" style="display: none;" class="sfx-btn glass-card px-3 py-1.5 rounded-full text-xs font-semibold text-cyan-500 dark:text-cyan-400 hover:text-white border-cyan-500/40 hover:border-cyan-400 flex items-center gap-1.5 shadow-md transition-all transform hover:scale-105">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span class="hidden sm:inline">Edit My Data</span>
+                    </button>
+
+                    <!-- Universal Hamburger Button (Tanpa md:hidden, jadi muncul di semua layar) -->
+                    <button id="menu-btn" aria-label="Toggle Navigation" class="sfx-btn p-2 rounded-lg text-slate-700 dark:text-gray-300 hover:text-cyan-500 focus:outline-none">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dropdown Menu Drawer -->
+        <div id="mobile-menu" class="hidden bg-white/95 dark:bg-slate-950/95 border-b border-black/10 dark:border-white/10 px-6 py-6 space-y-4 text-center">
+            <a href="#hero" class="sfx-hover mobile-link block text-lg font-semibold text-slate-800 dark:text-gray-200 hover:text-cyan-500 py-1">Home</a>
+            <a href="#agency" class="sfx-hover mobile-link block text-lg font-semibold text-slate-800 dark:text-gray-200 hover:text-cyan-500 py-1">Agency</a>
+            <a href="#expertise" class="sfx-hover mobile-link block text-lg font-semibold text-slate-800 dark:text-gray-200 hover:text-cyan-500 py-1">Expertise</a>
+            <a href="#projects" class="sfx-hover mobile-link block text-lg font-semibold text-slate-800 dark:text-gray-200 hover:text-cyan-500 py-1">Projects</a>
+            <a href="#contact" class="sfx-btn mobile-link inline-block px-8 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold shadow-lg shadow-cyan-500/30">Contact</a>
+        </div>
+    </header>
+
+    <!-- Shape Switcher & Audio Bar -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-lg">
+        <div class="glass-card p-2 rounded-full flex items-center justify-between gap-1 border-cyan-500/30 shadow-2xl">
+            <div class="flex items-center gap-1 overflow-x-auto py-1 px-1 no-scrollbar w-full justify-around">
+                <button data-shape="rocket" class="shape-btn active sfx-btn px-3 py-2 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-cyan-500 dark:hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-rocket text-cyan-500 dark:text-cyan-400"></i> <span class="hidden sm:inline">Rocket</span>
+                </button>
+                <button data-shape="satellite" class="shape-btn sfx-btn px-3 py-2 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-cyan-500 dark:hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-satellite text-amber-500 dark:text-amber-400"></i> <span class="hidden sm:inline">Satellite</span>
+                </button>
+                <button data-shape="sphere" class="shape-btn sfx-btn px-3 py-2 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-cyan-500 dark:hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-globe text-cyan-500 dark:text-cyan-400"></i> <span class="hidden sm:inline">Globe</span>
+                </button>
+                <button data-shape="astronaut" class="shape-btn sfx-btn px-3 py-2 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-cyan-500 dark:hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-user-astronaut text-amber-500 dark:text-amber-400"></i> <span class="hidden sm:inline">Astronaut</span>
+                </button>
+                <button data-shape="galaxy" class="shape-btn sfx-btn px-3 py-2 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-cyan-500 dark:hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-atom text-cyan-500 dark:text-cyan-400"></i> <span class="hidden sm:inline">Galaxy</span>
+                </button>
+            </div>
+            <button id="audio-toggle" class="sfx-btn px-3 py-2 rounded-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors ml-1 shrink-0" title="Toggle Sound Ambient">
+                <i class="fa-solid fa-volume-xmark" id="audio-icon"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Overlay Sections -->
+    <main class="relative z-10 pointer-events-none">
+
+        <!-- Hero Section (Rocket) -->
+        <section id="hero" data-shape="rocket" class="portfolio-section min-h-screen flex items-center justify-center pt-24 pb-28 px-4 sm:px-6">
+            <div class="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8 pointer-events-auto">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-100 dark:bg-cyan-950/60 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 text-xs tracking-widest uppercase font-semibold backdrop-blur-md">
+                    <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                    <span id="display-badge">Interactive Full-Stack & Game Developer</span>
+                </div>
+
+                <h1 class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight uppercase leading-none font-heading">
+                    <span id="display-hero-title">BOOST YOUR BRAND</span> <br>
+                    <span id="display-name" class="bg-gradient-to-r from-cyan-600 via-sky-500 to-amber-500 dark:from-cyan-400 dark:via-sky-200 dark:to-amber-300 bg-clip-text text-transparent glow-text">
+                        ALEXANDER DEV
+                    </span>
+                </h1>
+
+                <p id="display-bio" class="max-w-2xl mx-auto text-slate-600 dark:text-gray-300 text-sm sm:text-base md:text-lg font-light leading-relaxed px-2">
+                    We create digital experience at the interaction between design and technology, helping our clients to imagine the future today.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                    <a href="#projects" class="sfx-btn w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/30 text-center">
+                        Explore Work <i class="fa-solid fa-arrow-right ml-2 text-sm"></i>
+                    </a>
+                    <a href="#contact" class="sfx-btn w-full sm:w-auto px-8 py-4 rounded-full glass-card text-slate-700 dark:text-gray-200 hover:text-cyan-500 dark:hover:text-white transition-all text-center">
+                        Get In Touch
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Agency Section (Satellite) -->
+        <section id="agency" data-shape="satellite" class="portfolio-section min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 border-t border-black/5 dark:border-white/5">
+            <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-center pointer-events-auto">
+                <div class="space-y-6">
+                    <span class="text-xs uppercase tracking-widest text-amber-500 dark:text-amber-400 font-bold">Digital Agency</span>
+                    <h2 id="display-about-heading" class="text-3xl sm:text-5xl font-extrabold font-heading leading-tight uppercase">
+                        AGENCY SOLUTIONS
+                    </h2>
+                    <p id="display-about-text" class="text-slate-600 dark:text-gray-300 text-sm sm:text-base leading-relaxed">
+                        Applying a cross-disciplinary expertise in crafting and executing tech-based solutions. We believe that the power of creativity, technology, and emotion is the key to aligning vision into reality.
+                    </p>
+                </div>
+                <div class="glass-card p-6 sm:p-8 rounded-3xl space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div class="text-3xl sm:text-4xl font-extrabold font-heading text-cyan-600 dark:text-cyan-400">4K Ultra</div>
+                            <div class="text-xs text-slate-500 dark:text-gray-400 mt-1">High-Res Subpixel Sharpening</div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div class="text-3xl sm:text-4xl font-extrabold font-heading text-amber-500 dark:text-amber-400">60 FPS</div>
+                            <div class="text-xs text-slate-500 dark:text-gray-400 mt-1">WebGL 3D Rendering</div>
+                        </div>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-gray-400 leading-relaxed border-t border-black/10 dark:border-white/10 pt-4">
+                        <i class="fa-solid fa-satellite text-amber-500 dark:text-amber-400 mr-2"></i> Ultra-HD high-density particle geometry with clear object outlines.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Expertise Section (Globe) -->
+        <section id="expertise" data-shape="sphere" class="portfolio-section min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 border-t border-black/5 dark:border-white/5">
+            <div class="max-w-6xl mx-auto space-y-12 pointer-events-auto w-full">
+                <div class="text-center space-y-3">
+                    <span class="text-xs uppercase tracking-widest text-cyan-600 dark:text-cyan-400 font-bold">Capabilities</span>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold font-heading uppercase">Area of Expertise</h2>
+                </div>
+
+                <div id="display-skills-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+            </div>
+        </section>
+
+        <!-- Projects Section (Astronaut) -->
+        <section id="projects" data-shape="astronaut" class="portfolio-section min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 border-t border-black/5 dark:border-white/5">
+            <div class="max-w-6xl mx-auto space-y-12 pointer-events-auto w-full">
+                <div class="text-center space-y-3">
+                    <span class="text-xs uppercase tracking-widest text-amber-500 dark:text-amber-400 font-bold">Our Smart Team</span>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold font-heading uppercase">Featured Projects</h2>
+                </div>
+
+                <div id="display-projects-container" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
+            </div>
+        </section>
+
+        <!-- Contact Section (Galaxy) -->
+        <section id="contact" data-shape="galaxy" class="portfolio-section min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 border-t border-black/5 dark:border-white/5">
+            <div class="max-w-4xl mx-auto text-center space-y-8 pointer-events-auto w-full">
+                <span class="text-xs uppercase tracking-widest text-amber-500 dark:text-amber-400 font-bold">Work With Us</span>
+                <a id="display-email" href="mailto:hello@usta.agency" class="sfx-hover block text-3xl sm:text-5xl md:text-6xl font-extrabold font-heading text-slate-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors break-all glow-text">
+                    hello@usta.agency
+                </a>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-8 text-left border-t border-black/10 dark:border-white/10">
+                    <div class="glass-card p-6 rounded-2xl space-y-2">
+                        <h4 class="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Location / Studio</h4>
+                        <p id="display-location" class="text-sm text-slate-600 dark:text-gray-300">Global Remote / Indonesia</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider">Social Links</h4>
+                        <div id="display-socials" class="flex flex-wrap gap-2.5 pt-1"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 dark:text-gray-500 pt-10 border-t border-black/5 dark:border-white/5 gap-4">
+                    <p id="display-copyright">© 2026 Interactive 3D Particle Portfolio. All rights reserved.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- LIVE EDIT MODAL -->
+    <div id="editor-modal" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-2xl w-full max-h-[90vh] rounded-3xl border border-cyan-500/40 p-6 sm:p-8 overflow-y-auto space-y-6 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-4">
+                <h3 class="text-xl font-bold font-heading text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyan-500 dark:text-cyan-400"></i> Edit Portfolio & Socials
+                </h3>
+                <button id="close-editor-btn" class="sfx-btn text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white p-2 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="portfolio-data-form" class="space-y-6 text-sm text-left">
+                <!-- Personal Info -->
+                <div class="space-y-4">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-500 dark:text-amber-400">Personal Data</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-500 dark:text-gray-400 mb-1">Full Name</label>
+                            <input type="text" id="input-name" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 dark:text-gray-400 mb-1">Brand / Logo Text</label>
+                            <input type="text" id="input-brand" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-500 dark:text-gray-400 mb-1">Sub-Title / Role</label>
+                        <input type="text" id="input-hero-title" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-500 dark:text-gray-400 mb-1">Bio Description</label>
+                        <textarea id="input-bio" rows="2" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-500 dark:text-amber-400">Contact Details</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-500 dark:text-gray-400 mb-1">Email</label>
+                            <input type="email" id="input-email" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 dark:text-gray-400 mb-1">Location</label>
+                            <input type="text" id="input-location" class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC SOCIAL MEDIA MANAGER SECTION -->
+                <div class="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-share-nodes"></i> Dynamic Social Links
+                        </h4>
+                        <button type="button" id="add-social-item-btn" class="sfx-btn px-3 py-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500 hover:text-white transition-all text-xs font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> Add Social Link
+                        </button>
+                    </div>
+                    
+                    <p class="text-xs text-slate-500 dark:text-gray-400">Tambah, pilih platform, atau hapus sosmed secara dinamis:</p>
+                    
+                    <div id="dynamic-socials-list" class="space-y-3"></div>
+                </div>
+
+                <!-- DYNAMIC SKILLS MANAGER SECTION -->
+                <div class="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-500 dark:text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check"></i> Dynamic Skills Categories
+                        </h4>
+                        <button type="button" id="add-skill-category-btn" class="sfx-btn px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-white transition-all text-xs font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> Add Skill Category
+                        </button>
+                    </div>
+                    
+                    <p class="text-xs text-slate-500 dark:text-gray-400">Ubah judul kartu skill dan masukkan daftar item (pisahkan dengan koma):</p>
+                    
+                    <div id="dynamic-skills-list" class="space-y-4"></div>
+                </div>
+
+                <!-- DYNAMIC PROJECTS MANAGER SECTION -->
+                <div class="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-diagram-project"></i> Dynamic Featured Projects
+                        </h4>
+                        <button type="button" id="add-project-btn" class="sfx-btn px-3 py-1.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500 hover:text-white transition-all text-xs font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> Add Project
+                        </button>
+                    </div>
+                    
+                    <p class="text-xs text-slate-500 dark:text-gray-400">Tambah, edit judul, teknologi (badge), dan deskripsi proyek kamu:</p>
+                    
+                    <div id="dynamic-projects-list" class="space-y-4"></div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 border-t border-black/10 dark:border-white/10 pt-6">
+                    <button type="button" id="reset-default-btn" class="sfx-btn px-5 py-2.5 rounded-full bg-black/5 dark:bg-white/5 text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-all">
+                        Reset Default
+                    </button>
+                    <button type="submit" class="sfx-btn px-7 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 transition-all">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- WEB AUDIO API SOUND SYNTHESIZER ENGINE -->
+    <script>
+        let audioCtx = null;
+        let ambientOsc = null;
+        let ambientGain = null;
+        let soundEnabled = false;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playClickSFX(freq = 800, duration = 0.08) {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.3, audioCtx.currentTime + duration);
+
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playMorphSFX() {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.25);
+
+                gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {}
+        }
+
+        function toggleAmbientDrone() {
+            initAudioContext();
+            soundEnabled = !soundEnabled;
+
+            const icon = document.getElementById('audio-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-cyan-500 dark:text-cyan-400';
+                playClickSFX(1000, 0.1);
+
+                ambientOsc = audioCtx.createOscillator();
+                ambientGain = audioCtx.createGain();
+
+                ambientOsc.type = 'sine';
+                ambientOsc.frequency.setValueAtTime(65.41, audioCtx.currentTime);
+
+                ambientGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                ambientGain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 1.5);
+
+                ambientOsc.connect(ambientGain);
+                ambientGain.connect(audioCtx.destination);
+
+                ambientOsc.start();
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark';
+                if (ambientGain) {
+                    ambientGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                    if (ambientOsc) {
+                        try {
+                            ambientOsc.stop();
+                            ambientOsc.disconnect();
+                        } catch (e) {}
+                    }
+                }
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.sfx-btn')) {
+                playClickSFX(900, 0.08);
+            }
+        });
+
+        document.addEventListener('mouseover', (e) => {
+            if (e.target.closest('.sfx-hover') || e.target.closest('.sfx-btn')) {
+                playClickSFX(1200, 0.04);
+            }
+        });
+
+        document.getElementById('audio-toggle').addEventListener('click', toggleAmbientDrone);
+    </script>
+
+    <!-- Data Management & Theme Toggle Script -->
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        const currentTheme = localStorage.getItem('portfolio_theme') || 'dark';
+        if (currentTheme === 'light') {
+            document.body.classList.remove('dark');
+            themeIcon.className = 'fa-solid fa-moon text-sm';
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('portfolio_theme', isDark ? 'dark' : 'light');
+            themeIcon.className = isDark ? 'fa-solid fa-sun text-sm' : 'fa-solid fa-moon text-sm';
+        });
+
+        const platformOptions = [
+            { id: "instagram", name: "Instagram", icon: "fa-brands fa-instagram", color: "hover:text-pink-500 hover:border-pink-500/40" },
+            { id: "tiktok", name: "TikTok", icon: "fa-brands fa-tiktok", color: "hover:text-cyan-500 hover:border-cyan-500/40" },
+            { id: "youtube", name: "YouTube", icon: "fa-brands fa-youtube", color: "hover:text-red-500 hover:border-red-500/40" },
+            { id: "whatsapp", name: "WhatsApp", icon: "fa-brands fa-whatsapp", color: "hover:text-emerald-500 hover:border-emerald-500/40", isWa: true },
+            { id: "github", name: "GitHub", icon: "fa-brands fa-github", color: "hover:text-slate-900 dark:hover:text-white hover:border-slate-400/40" },
+            { id: "linkedin", name: "LinkedIn", icon: "fa-brands fa-linkedin", color: "hover:text-blue-500 hover:border-blue-500/40" },
+            { id: "twitter", name: "X / Twitter", icon: "fa-brands fa-x-twitter", color: "hover:text-slate-900 dark:hover:text-gray-200 hover:border-gray-400/40" },
+            { id: "discord", name: "Discord", icon: "fa-brands fa-discord", color: "hover:text-indigo-500 hover:border-indigo-500/40" },
+            { id: "behance", name: "Behance", icon: "fa-brands fa-behance", color: "hover:text-blue-600 hover:border-blue-500/40" },
+            { id: "dribbble", name: "Dribbble", icon: "fa-brands fa-dribbble", color: "hover:text-pink-600 hover:border-pink-500/40" },
+            { id: "spotify", name: "Spotify", icon: "fa-brands fa-spotify", color: "hover:text-green-500 hover:border-green-500/40" },
+            { id: "custom", name: "Custom Link", icon: "fa-solid fa-link", color: "hover:text-cyan-500 hover:border-cyan-500/40" }
+        ];
+
+        const defaultUserData = {
+            name: "ALEXANDER DEV",
+            brand: "USTA.AGENCY",
+            badge: "Interactive Full-Stack & Game Developer",
+            heroTitle: "BOOST YOUR BRAND",
+            bio: "We create digital experience at the interaction between design and technology, helping our clients to imagine the future today.",
+            aboutHeading: "AGENCY SOLUTIONS",
+            aboutText: "Applying a cross-disciplinary expertise in crafting and executing tech-based solutions. We believe that the power of creativity, technology, and emotion is the key to aligning vision into reality.",
+            email: "hello@usta.agency",
+            location: "Global Remote / Indonesia",
+            socialsList: [
+                { platform: "instagram", url: "https://instagram.com" },
+                { platform: "github", url: "https://github.com" },
+                { platform: "linkedin", url: "https://linkedin.com" },
+                { platform: "whatsapp", url: "6281234567890" }
+            ],
+            skills: [
+                { category: "Strategy & Creative", items: ["Creative Direction", "UI/UX Design", "Research & Development", "Motion Design"], icon: "fa-compass-drafting", color: "text-amber-500 dark:text-amber-400", border: "border-amber-500/30" },
+                { category: "Tech & Architecture", items: ["PHP 8+ & MySQL", "JavaScript & WebGL", "HTML5 Canvas Engines", "Luau / Roblox Development"], icon: "fa-code", color: "text-cyan-600 dark:text-cyan-400", border: "border-cyan-500/30" },
+                { category: "Production & 3D", items: ["3D Modelling & Rigging", "3D Particle Animation", "Interactive Visuals", "Audio / Video Production"], icon: "fa-cubes", color: "text-indigo-600 dark:text-indigo-400", border: "border-indigo-500/30" }
+            ],
+            projects: [
+                {
+                    title: "Pasquale & Adriano Studio",
+                    tech: "Luau & Three.js",
+                    desc: "Interactive 3D particle showcase and game server architecture with real-time state synchronization.",
+                    icon: "fa-gamepad",
+                    color: "text-amber-500 dark:text-amber-400",
+                    badgeColor: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                },
+                {
+                    title: "PHP & MySQL Enterprise API",
+                    tech: "PHP & MySQL",
+                    desc: "Scalable backend web service with database indexing, caching layer, and optimized API endpoints.",
+                    icon: "fa-server",
+                    color: "text-cyan-600 dark:text-cyan-400",
+                    badgeColor: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30"
+                },
+                {
+                    title: "Canvas 2D Physics Engine",
+                    tech: "JavaScript / Canvas",
+                    desc: "Custom high-performance 2D particle simulation engine rendered directly on HTML5 Canvas.",
+                    icon: "fa-atom",
+                    color: "text-indigo-600 dark:text-indigo-400",
+                    badgeColor: "bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30"
+                },
+                {
+                    title: "Scroll Morphing WebGL App",
+                    tech: "Three.js & Tailwind",
+                    desc: "Scroll-triggered 3D particle morphing website built for high-end digital agency portfolios.",
+                    icon: "fa-rocket",
+                    color: "text-cyan-600 dark:text-cyan-400",
+                    badgeColor: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30"
+                }
+            ]
+        };
+
+        let currentUserData = JSON.parse(localStorage.getItem('user_portfolio_data_v3')) || defaultUserData;
+
+        function renderPortfolioData() {
+            const d = currentUserData;
+            document.getElementById('display-name').innerText = d.name;
+            document.getElementById('display-brand-logo').innerHTML = `${d.brand.split('.')[0] || 'USTA'}<span class="text-cyan-500 dark:text-cyan-400">.${d.brand.split('.')[1] || 'AGENCY'}</span>`;
+            document.getElementById('display-avatar-initial').innerText = (d.name[0] || 'A').toUpperCase();
+            document.getElementById('display-badge').innerText = d.badge || 'Developer';
+            document.getElementById('display-hero-title').innerText = d.heroTitle || 'BOOST YOUR BRAND';
+            document.getElementById('display-bio').innerText = d.bio;
+            document.getElementById('display-about-heading').innerText = d.aboutHeading;
+            document.getElementById('display-about-text').innerText = d.aboutText;
+            
+            const emailEl = document.getElementById('display-email');
+            emailEl.innerText = d.email;
+            emailEl.href = `mailto:${d.email}`;
+            document.getElementById('display-location').innerText = d.location;
+
+            const socialsContainer = document.getElementById('display-socials');
+            let socialButtonsHTML = '';
+
+            const list = d.socialsList || [];
+            list.forEach(item => {
+                if (!item.url || item.url.trim() === '') return;
+
+                const meta = platformOptions.find(p => p.id === item.platform) || {
+                    name: item.customName || 'Link',
+                    icon: 'fa-solid fa-link',
+                    color: 'hover:text-cyan-500 hover:border-cyan-500/40'
+                };
+
+                let targetUrl = item.url.trim();
+                if (meta.isWa) {
+                    const cleanNum = targetUrl.replace(/\D/g, '');
+                    targetUrl = `https://wa.me/${cleanNum}`;
+                } else if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+                    targetUrl = `https://${targetUrl}`;
+                }
+
+                socialButtonsHTML += `
+                    <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="sfx-btn px-3.5 py-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-xs text-slate-700 dark:text-gray-300 ${meta.color} transition-all flex items-center gap-2 shadow-sm hover:scale-105">
+                        <i class="${meta.icon} text-sm"></i>
+                        <span>${meta.name || 'Link'}</span>
+                    </a>
+                `;
+            });
+
+            socialsContainer.innerHTML = socialButtonsHTML || '<span class="text-xs text-gray-500">No social media links added yet.</span>';
+
+            // RENDER DYNAMIC SKILLS CARDS
+            const skillsList = d.skills || [];
+            document.getElementById('display-skills-container').innerHTML = skillsList.map((s) => `
+                <div class="glass-card p-8 rounded-2xl space-y-4 ${s.border || 'border-cyan-500/30'}">
+                    <div class="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center ${s.color || 'text-cyan-400'} text-xl">
+                        <i class="fa-solid ${s.icon || 'fa-code'}"></i>
+                    </div>
+                    <h3 class="text-xl font-bold font-heading text-slate-900 dark:text-white">${s.category || 'Skill Category'}</h3>
+                    <ul class="space-y-2 text-sm text-slate-600 dark:text-gray-400">
+                        ${(s.items || []).map(item => `<li>• ${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
+
+            // RENDER DYNAMIC PROJECTS CARDS
+            const projectsList = d.projects || [];
+            document.getElementById('display-projects-container').innerHTML = projectsList.map((p) => `
+                <div class="glass-card rounded-2xl overflow-hidden group border border-black/5 dark:border-white/5 hover:border-cyan-500/30 transition-all">
+                    <div class="h-48 sm:h-56 bg-slate-100 dark:bg-slate-900/80 relative flex items-center justify-center">
+                        <i class="fa-solid ${p.icon || 'fa-code'} text-6xl ${p.color || 'text-cyan-400'} opacity-40 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500"></i>
+                        <span class="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-mono border ${p.badgeColor || 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'}">${p.tech || 'Tech'}</span>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <h3 class="text-xl font-bold font-heading text-slate-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">${p.title || 'Project Title'}</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-400">${p.desc || 'Project description...'}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDynamicSocialEditorRows(socials) {
+            const container = document.getElementById('dynamic-socials-list');
+            container.innerHTML = '';
+
+            socials.forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'flex flex-col sm:flex-row items-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-3 rounded-2xl';
+
+                const optionsHTML = platformOptions.map(p => 
+                    `<option value="${p.id}" ${p.id === item.platform ? 'selected' : ''}>${p.name}</option>`
+                ).join('');
+
+                row.innerHTML = `
+                    <select class="social-platform-select bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full sm:w-1/3">
+                        ${optionsHTML}
+                    </select>
+                    <input type="text" class="social-url-input bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white text-xs border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full sm:w-7/12" placeholder="https://... atau Nomor WA" value="${item.url || ''}">
+                    <button type="button" class="sfx-btn delete-social-btn text-red-500 hover:text-red-400 p-2 text-sm rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors self-end sm:self-center">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+
+                row.querySelector('.delete-social-btn').addEventListener('click', () => {
+                    row.remove();
+                });
+
+                container.appendChild(row);
+            });
+        }
+
+        function renderDynamicSkillEditorRows(skills) {
+            const container = document.getElementById('dynamic-skills-list');
+            container.innerHTML = '';
+
+            skills.forEach((skillGroup) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-4 rounded-2xl space-y-3';
+
+                groupDiv.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <input type="text" class="skill-category-title-input bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full" placeholder="Nama Kategori Skill" value="${skillGroup.category || ''}">
+                        <button type="button" class="sfx-btn delete-skill-group-btn text-red-500 hover:text-red-400 p-2 text-sm rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <input type="text" class="skill-items-input bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white text-xs border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full" placeholder="Daftar item pisahkan dengan koma" value="${(skillGroup.items || []).join(', ')}">
+                    </div>
+                `;
+
+                groupDiv.querySelector('.delete-skill-group-btn').addEventListener('click', () => {
+                    groupDiv.remove();
+                });
+
+                container.appendChild(groupDiv);
+            });
+        }
+
+        function renderDynamicProjectEditorRows(projects) {
+            const container = document.getElementById('dynamic-projects-list');
+            container.innerHTML = '';
+
+            projects.forEach((proj) => {
+                const projDiv = document.createElement('div');
+                projDiv.className = 'bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-4 rounded-2xl space-y-3';
+
+                projDiv.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <input type="text" class="project-title-input bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full sm:w-2/3" placeholder="Judul Proyek" value="${proj.title || ''}">
+                        <input type="text" class="project-tech-input bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full sm:w-1/3" placeholder="Tech (cth: Three.js)" value="${proj.tech || ''}">
+                        <button type="button" class="sfx-btn delete-project-btn text-red-500 hover:text-red-400 p-2 text-sm rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <textarea rows="2" class="project-desc-input bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white text-xs border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 focus:border-cyan-500 focus:outline-none w-full" placeholder="Deskripsi Singkat Proyek">${proj.desc || ''}</textarea>
+                    </div>
+                `;
+
+                projDiv.querySelector('.delete-project-btn').addEventListener('click', () => {
+                    projDiv.remove();
+                });
+
+                container.appendChild(projDiv);
+            });
+        }
+
+        const modal = document.getElementById('editor-modal');
+        document.getElementById('open-editor-btn').addEventListener('click', () => {
+            const d = currentUserData;
+            document.getElementById('input-name').value = d.name || '';
+            document.getElementById('input-brand').value = d.brand || '';
+            document.getElementById('input-hero-title').value = d.heroTitle || '';
+            document.getElementById('input-bio').value = d.bio || '';
+            document.getElementById('input-email').value = d.email || '';
+            document.getElementById('input-location').value = d.location || '';
+
+            renderDynamicSocialEditorRows(d.socialsList || []);
+            renderDynamicSkillEditorRows(d.skills || []);
+            renderDynamicProjectEditorRows(d.projects || []);
+            modal.classList.remove('hidden');
+        });
+
+        document.getElementById('close-editor-btn').addEventListener('click', () => modal.classList.add('hidden'));
+
+        document.getElementById('add-social-item-btn').addEventListener('click', () => {
+            const currentList = getSocialsFromEditor();
+            currentList.push({ platform: "instagram", url: "" });
+            renderDynamicSocialEditorRows(currentList);
+        });
+
+        document.getElementById('add-skill-category-btn').addEventListener('click', () => {
+            const currentSkills = getSkillsFromEditor();
+            currentSkills.push({
+                category: "Kategori Baru",
+                items: ["Skill 1", "Skill 2"],
+                icon: "fa-code",
+                color: "text-cyan-600 dark:text-cyan-400",
+                border: "border-cyan-500/30"
+            });
+            renderDynamicSkillEditorRows(currentSkills);
+        });
+
+        document.getElementById('add-project-btn').addEventListener('click', () => {
+            const currentProjects = getProjectsFromEditor();
+            currentProjects.push({
+                title: "Proyek Baru",
+                tech: "HTML & CSS",
+                desc: "Deskripsi singkat mengenai proyek baru kamu.",
+                icon: "fa-rocket",
+                color: "text-cyan-600 dark:text-cyan-400",
+                badgeColor: "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30"
+            });
+            renderDynamicProjectEditorRows(currentProjects);
+        });
+
+        function getSocialsFromEditor() {
+            const rows = document.querySelectorAll('#dynamic-socials-list > div');
+            const result = [];
+            rows.forEach(row => {
+                const platform = row.querySelector('.social-platform-select').value;
+                const url = row.querySelector('.social-url-input').value;
+                result.push({ platform, url });
+            });
+            return result;
+        }
+
+        function getSkillsFromEditor() {
+            const groups = document.querySelectorAll('#dynamic-skills-list > div');
+            const result = [];
+            const icons = ["fa-compass-drafting", "fa-code", "fa-cubes", "fa-layer-group", "fa-laptop-code"];
+            const colors = ["text-amber-500 dark:text-amber-400", "text-cyan-600 dark:text-cyan-400", "text-indigo-600 dark:text-indigo-400"];
+
+            groups.forEach((group, idx) => {
+                const category = group.querySelector('.skill-category-title-input').value;
+                const itemsRaw = group.querySelector('.skill-items-input').value;
+                const items = itemsRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+                result.push({
+                    category: category || "Kategori Skill",
+                    items: items,
+                    icon: icons[idx % icons.length],
+                    color: colors[idx % colors.length],
+                    border: "border-cyan-500/30"
+                });
+            });
+            return result;
+        }
+
+        function getProjectsFromEditor() {
+            const projs = document.querySelectorAll('#dynamic-projects-list > div');
+            const result = [];
+            const icons = ["fa-gamepad", "fa-server", "fa-atom", "fa-rocket", "fa-laptop-code"];
+            const colors = ["text-amber-500 dark:text-amber-400", "text-cyan-600 dark:text-cyan-400", "text-indigo-600 dark:text-indigo-400"];
+            const badgeColors = [
+                "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30",
+                "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+                "bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30"
+            ];
+
+            projs.forEach((proj, idx) => {
+                const title = proj.querySelector('.project-title-input').value;
+                const tech = proj.querySelector('.project-tech-input').value;
+                const desc = proj.querySelector('.project-desc-input').value;
+
+                result.push({
+                    title: title || "Judul Proyek",
+                    tech: tech || "Tech",
+                    desc: desc || "Deskripsi proyek",
+                    icon: icons[idx % icons.length],
+                    color: colors[idx % colors.length],
+                    badgeColor: badgeColors[idx % badgeColors.length]
+                });
+            });
+            return result;
+        }
+
+        document.getElementById('portfolio-data-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            currentUserData.name = document.getElementById('input-name').value;
+            currentUserData.brand = document.getElementById('input-brand').value;
+            currentUserData.heroTitle = document.getElementById('input-hero-title').value;
+            currentUserData.bio = document.getElementById('input-bio').value;
+            currentUserData.email = document.getElementById('input-email').value;
+            currentUserData.location = document.getElementById('input-location').value;
+            currentUserData.socialsList = getSocialsFromEditor();
+            currentUserData.skills = getSkillsFromEditor();
+            currentUserData.projects = getProjectsFromEditor();
+
+            localStorage.setItem('user_portfolio_data_v3', JSON.stringify(currentUserData));
+            renderPortfolioData();
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('reset-default-btn').addEventListener('click', () => {
+            currentUserData = JSON.parse(JSON.stringify(defaultUserData));
+            localStorage.removeItem('user_portfolio_data_v3');
+            renderPortfolioData();
+            modal.classList.add('hidden');
+        });
+
+        renderPortfolioData();
+    </script>
+
+    <!-- ULTRA-HD 4K VOLUMETRIC 3D SPACE & SCROLL MORPHING ENGINE -->
+    <script>
+        const isMobile = window.innerWidth <= 768;
+        const particleCount = isMobile ? 12000 : 25000;
+        const starCount = isMobile ? 4000 : 10000;
+        const nebulaParticleCount = isMobile ? 1200 : 3500;
+
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x010307, 0.0015);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.z = isMobile ? 220 : 170;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3.0));
+        container.appendChild(renderer.domElement);
+
+        function createHDSprite() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            g.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+            g.addColorStop(0.25, 'rgba(6, 240, 255, 0.95)');
+            g.addColorStop(0.55, 'rgba(245, 158, 11, 0.6)');
+            g.addColorStop(0.8, 'rgba(236, 72, 153, 0.15)');
+            g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(32, 32, 32, 0, Math.PI * 2);
+            ctx.fill();
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        const particleTexture = createHDSprite();
+
+        // 1. NEBULA
+        const nebulaGeo = new THREE.BufferGeometry();
+        const nebulaPos = new Float32Array(nebulaParticleCount * 3);
+        const nebulaColors = new Float32Array(nebulaParticleCount * 3);
+
+        const colorCyan = new THREE.Color(0x00f0ff);
+        const colorPurple = new THREE.Color(0xd946ef);
+        const colorAmber = new THREE.Color(0xffb703);
+        const colorGreen = new THREE.Color(0x10b981);
+        const colorWhite = new THREE.Color(0xffffff);
+
+        for (let i = 0; i < nebulaParticleCount; i++) {
+            nebulaPos[i * 3] = (Math.random() - 0.5) * 800;
+            nebulaPos[i * 3 + 1] = (Math.random() - 0.5) * 800;
+            nebulaPos[i * 3 + 2] = (Math.random() - 0.5) * 800 - 100;
+
+            const rand = Math.random();
+            const c = rand > 0.6 ? colorCyan : (rand > 0.3 ? colorPurple : colorAmber);
+            nebulaColors[i * 3] = c.r * 1.5;
+            nebulaColors[i * 3 + 1] = c.g * 1.5;
+            nebulaColors[i * 3 + 2] = c.b * 1.5;
+        }
+
+        nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nebulaPos, 3));
+        nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nebulaColors, 3));
+
+        const nebulaMat = new THREE.PointsMaterial({
+            size: isMobile ? 12.0 : 9.0,
+            vertexColors: true,
+            map: particleTexture,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const nebulaMesh = new THREE.Points(nebulaGeo, nebulaMat);
+        scene.add(nebulaMesh);
+
+        // 2. STARFIELD
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            starPos[i * 3] = (Math.random() - 0.5) * 1200;
+            starPos[i * 3 + 1] = (Math.random() - 0.5) * 1200;
+            starPos[i * 3 + 2] = (Math.random() - 0.5) * 1200;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 1.8,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending
+        });
+        const starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // 3. MORPHING SHAPES
+        const shapes = {
+            rocket: new Float32Array(particleCount * 3),
+            satellite: new Float32Array(particleCount * 3),
+            sphere: new Float32Array(particleCount * 3),
+            astronaut: new Float32Array(particleCount * 3),
+            galaxy: new Float32Array(particleCount * 3)
+        };
+
+        const colors = new Float32Array(particleCount * 3);
+        const originalPositions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            const ratio = i / particleCount;
+
+            // ROCKET
+            if (ratio < 0.45) {
+                const h = (Math.random() - 0.5) * 80;
+                const r = 18;
+                const a = Math.random() * Math.PI * 2;
+                shapes.rocket[i * 3] = Math.cos(a) * r;
+                shapes.rocket[i * 3 + 1] = h;
+                shapes.rocket[i * 3 + 2] = Math.sin(a) * r;
+            } else if (ratio < 0.70) {
+                const h = Math.random() * 45;
+                const r = (1 - h / 45) * 18;
+                const a = Math.random() * Math.PI * 2;
+                shapes.rocket[i * 3] = Math.cos(a) * r;
+                shapes.rocket[i * 3 + 1] = 40 + h;
+                shapes.rocket[i * 3 + 2] = Math.sin(a) * r;
+            } else if (ratio < 0.88) {
+                const finIndex = Math.floor(Math.random() * 3);
+                const a = (finIndex * (Math.PI * 2 / 3));
+                const finProgress = Math.random();
+                const distOut = 18 + finProgress * 22;
+                const h = -40 + (1 - finProgress) * 35;
+                shapes.rocket[i * 3] = Math.cos(a) * distOut + (Math.random() - 0.5) * 2;
+                shapes.rocket[i * 3 + 1] = h;
+                shapes.rocket[i * 3 + 2] = Math.sin(a) * distOut + (Math.random() - 0.5) * 2;
+            } else {
+                const h = Math.random() * 35;
+                const r = (h / 35) * 14;
+                const a = Math.random() * Math.PI * 2;
+                shapes.rocket[i * 3] = Math.cos(a) * r;
+                shapes.rocket[i * 3 + 1] = -40 - h;
+                shapes.rocket[i * 3 + 2] = Math.sin(a) * r;
+            }
+
+            // SATELLITE
+            if (ratio < 0.30) {
+                shapes.satellite[i * 3] = (Math.random() - 0.5) * 32;
+                shapes.satellite[i * 3 + 1] = (Math.random() - 0.5) * 32;
+                shapes.satellite[i * 3 + 2] = (Math.random() - 0.5) * 32;
+            } else if (ratio < 0.80) {
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const spanX = (Math.random() * 65 + 24) * side;
+                const spanY = (Math.random() - 0.5) * 36;
+                const spanZ = (Math.random() - 0.5) * 3;
+                shapes.satellite[i * 3] = spanX;
+                shapes.satellite[i * 3 + 1] = spanY;
+                shapes.satellite[i * 3 + 2] = spanZ;
+            } else {
+                const r = Math.random() * 20;
+                const a = Math.random() * Math.PI * 2;
+                shapes.satellite[i * 3] = Math.cos(a) * r;
+                shapes.satellite[i * 3 + 1] = 16 + (r / 20) * 12;
+                shapes.satellite[i * 3 + 2] = Math.sin(a) * r + 20;
+            }
+
+            // GLOBE
+            if (ratio < 0.65) {
+                const u = Math.random(), v = Math.random();
+                const theta = u * Math.PI * 2, phi = Math.acos(2 * v - 1);
+                const rSph = 52;
+                shapes.sphere[i * 3] = rSph * Math.sin(phi) * Math.cos(theta);
+                shapes.sphere[i * 3 + 1] = rSph * Math.sin(phi) * Math.sin(theta);
+                shapes.sphere[i * 3 + 2] = rSph * Math.cos(phi);
+            } else if (ratio < 0.85) {
+                const ringChoice = Math.floor(Math.random() * 5);
+                const angle = Math.random() * Math.PI * 2;
+                const rRing = 53;
+                if (ringChoice < 3) {
+                    const lat = (ringChoice - 1) * 0.7;
+                    shapes.sphere[i * 3] = Math.cos(angle) * rRing * Math.cos(lat);
+                    shapes.sphere[i * 3 + 1] = Math.sin(lat) * rRing;
+                    shapes.sphere[i * 3 + 2] = Math.sin(angle) * rRing * Math.cos(lat);
+                } else {
+                    shapes.sphere[i * 3] = Math.cos(angle) * rRing;
+                    shapes.sphere[i * 3 + 1] = Math.sin(angle) * rRing;
+                    shapes.sphere[i * 3 + 2] = (Math.random() - 0.5) * 4;
+                }
+            } else {
+                const rCore = Math.random() * 22;
+                const u = Math.random(), v = Math.random();
+                const theta = u * Math.PI * 2, phi = Math.acos(2 * v - 1);
+                shapes.sphere[i * 3] = rCore * Math.sin(phi) * Math.cos(theta);
+                shapes.sphere[i * 3 + 1] = rCore * Math.sin(phi) * Math.sin(theta);
+                shapes.sphere[i * 3 + 2] = rCore * Math.cos(phi);
+            }
+
+            // ASTRONAUT
+            if (ratio < 0.20) {
+                const u = Math.random(), v = Math.random();
+                const theta = u * Math.PI * 2, phi = Math.acos(2 * v - 1);
+                const rH = 16;
+                shapes.astronaut[i * 3] = rH * Math.sin(phi) * Math.cos(theta);
+                shapes.astronaut[i * 3 + 1] = 36 + rH * Math.sin(phi) * Math.sin(theta);
+                shapes.astronaut[i * 3 + 2] = rH * Math.cos(phi);
+            } else if (ratio < 0.55) {
+                shapes.astronaut[i * 3] = (Math.random() - 0.5) * 32;
+                shapes.astronaut[i * 3 + 1] = (Math.random() - 0.5) * 36;
+                shapes.astronaut[i * 3 + 2] = (Math.random() - 0.5) * 22;
+            } else if (ratio < 0.80) {
+                const part = Math.floor(Math.random() * 4);
+                const side = (part % 2 === 0) ? 1 : -1;
+                if (part < 2) {
+                    shapes.astronaut[i * 3] = (20 + Math.random() * 18) * side;
+                    shapes.astronaut[i * 3 + 1] = 10 + (Math.random() - 0.5) * 16;
+                    shapes.astronaut[i * 3 + 2] = (Math.random() - 0.5) * 12;
+                } else {
+                    shapes.astronaut[i * 3] = (10 + Math.random() * 10) * side;
+                    shapes.astronaut[i * 3 + 1] = -22 - Math.random() * 32;
+                    shapes.astronaut[i * 3 + 2] = (Math.random() - 0.5) * 12;
+                }
+            } else {
+                shapes.astronaut[i * 3] = (Math.random() - 0.5) * 28;
+                shapes.astronaut[i * 3 + 1] = (Math.random() - 0.5) * 30;
+                shapes.astronaut[i * 3 + 2] = -14 - Math.random() * 12;
+            }
+
+            // GALAXY
+            const arms = 2;
+            const armOffset = (Math.floor(Math.random() * arms) * (Math.PI * 2 / arms));
+            const distance = Math.pow(Math.random(), 1.2) * 75 + 4;
+            const angle = distance * 0.08 + armOffset;
+            shapes.galaxy[i * 3] = Math.cos(angle) * distance + (Math.random() - 0.5) * 6;
+            shapes.galaxy[i * 3 + 1] = (Math.random() - 0.5) * (80 - distance) * 0.2;
+            shapes.galaxy[i * 3 + 2] = Math.sin(angle) * distance + (Math.random() - 0.5) * 6;
+
+            const randColor = Math.random();
+            let c = colorCyan;
+            if (randColor > 0.75) c = colorCyan;
+            else if (randColor > 0.50) c = colorAmber;
+            else if (randColor > 0.25) c = colorPurple;
+            else if (randColor > 0.10) c = colorGreen;
+            else c = colorWhite;
+
+            colors[i * 3] = c.r * 2.0; 
+            colors[i * 3 + 1] = c.g * 2.0; 
+            colors[i * 3 + 2] = c.b * 2.0;
+
+            originalPositions[i * 3] = shapes.rocket[i * 3];
+            originalPositions[i * 3 + 1] = shapes.rocket[i * 3 + 1];
+            originalPositions[i * 3 + 2] = shapes.rocket[i * 3 + 2];
+        }
+
+        const currentPositions = new Float32Array(originalPositions);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: isMobile ? 1.7 : 1.3,
+            vertexColors: true,
+            map: particleTexture,
+            transparent: true,
+            opacity: 1.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const particleSystem = new THREE.Points(geometry, particleMaterial);
+        scene.add(particleSystem);
+
+        const mousePointLight = new THREE.PointLight(0x00f0ff, 12, 250);
+        scene.add(mousePointLight);
+
+        let activeTarget = shapes.rocket;
+        let activeShapeName = 'rocket';
+        let rotX = 0, rotY = 0, targetRotX = 0, targetRotY = 0;
+        let mouseX = 0, mouseY = 0;
+
+        const portfolioSections = document.querySelectorAll('.portfolio-section');
+        const shapeBtns = document.querySelectorAll('.shape-btn');
+
+        function updateActiveShape(shapeName) {
+            if (activeShapeName === shapeName) return;
+            activeShapeName = shapeName;
+            activeTarget = shapes[shapeName];
+
+            playMorphSFX();
+
+            shapeBtns.forEach(btn => {
+                if (btn.getAttribute('data-shape') === shapeName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function handleScrollMorph() {
+            const scrollPos = window.scrollY + window.innerHeight * 0.4;
+            portfolioSections.forEach(sec => {
+                const top = sec.offsetTop;
+                const height = sec.offsetHeight;
+                if (scrollPos >= top && scrollPos < top + height) {
+                    const targetShape = sec.getAttribute('data-shape');
+                    if (targetShape && shapes[targetShape]) {
+                        updateActiveShape(targetShape);
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('scroll', handleScrollMorph);
+
+        shapeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetShape = btn.getAttribute('data-shape');
+                updateActiveShape(targetShape);
+            });
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            targetRotY = mouseX * 0.35;
+            targetRotX = -mouseY * 0.35;
+            mousePointLight.position.set(mouseX * 100, mouseY * 100, 50);
+        });
+
+        let isTouchDragging = false, prevTouchX = 0, prevTouchY = 0;
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isTouchDragging = true;
+                prevTouchX = e.touches[0].clientX;
+                prevTouchY = e.touches[0].clientY;
+            }
+        });
+        container.addEventListener('touchmove', (e) => {
+            if (isTouchDragging && e.touches.length === 1) {
+                targetRotY += (e.touches[0].clientX - prevTouchX) * 0.005;
+                targetRotX += (e.touches[0].clientY - prevTouchY) * 0.005;
+                prevTouchX = e.touches[0].clientX;
+                prevTouchY = e.touches[0].clientY;
+            }
+        });
+        container.addEventListener('touchend', () => { isTouchDragging = false; });
+
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+        document.querySelectorAll('.mobile-link').forEach(l => l.addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.add('hidden');
+        }));
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.position.z = window.innerWidth <= 768 ? 220 : 170;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+            const posAttr = geometry.attributes.position;
+            const pArray = posAttr.array;
+
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+                pArray[idx] += (activeTarget[idx] - pArray[idx]) * 0.06;
+                pArray[idx + 1] += (activeTarget[idx + 1] - pArray[idx + 1]) * 0.06;
+                pArray[idx + 2] += (activeTarget[idx + 2] - pArray[idx + 2]) * 0.06;
+            }
+            posAttr.needsUpdate = true;
+
+            rotX += (targetRotX - rotX) * 0.04;
+            rotY += (targetRotY - rotY) * 0.04;
+
+            particleSystem.rotation.y = elapsedTime * 0.12 + rotY;
+            particleSystem.rotation.x = rotX;
+            particleSystem.position.y = Math.sin(elapsedTime * 0.5) * 2.0;
+
+            nebulaMesh.rotation.y = elapsedTime * 0.02 + rotY * 0.2;
+            nebulaMesh.rotation.x = elapsedTime * 0.01 + rotX * 0.2;
+            starField.rotation.y = elapsedTime * 0.008;
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            animate();
+            handleScrollMorph();
+        };
+    </script>
+
+    <!-- ADMIN LOCK & SECRET PIN SCRIPT -->
+    <script>
+        const ADMIN_PIN = "1234";
+
+        function requestAdminAccess() {
+            const inputPin = prompt("Masukkan PIN Rahasia Admin:");
+            if (inputPin === ADMIN_PIN) {
+                alert("Akses Admin Diterima!");
+                const editBtn = document.getElementById('open-editor-btn');
+                if (editBtn) editBtn.style.display = 'flex';
+                const modal = document.getElementById('editor-modal');
+                if (modal) modal.classList.remove('hidden');
+            } else if (inputPin !== null) {
+                alert("PIN Salah!");
+            }
+        }
+
+        // PC Shortcut: Ctrl + Shift + E
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'e') {
+                e.preventDefault();
+                requestAdminAccess();
+            }
+        });
+
+        // Mobile Shortcut: Triple tap top-right
+        let tapCount = 0;
+        let tapTimer = null;
+        window.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            if (touch && touch.clientX > window.innerWidth - 100 && touch.clientY < 100) {
+                tapCount++;
+                clearTimeout(tapTimer);
+                if (tapCount === 3) {
+                    tapCount = 0;
+                    requestAdminAccess();
+                } else {
+                    tapTimer = setTimeout(() => { tapCount = 0; }, 500);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
